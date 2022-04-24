@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'sentiment_analysis.apps.analysisapp',
+    'sentiment_analysis.apps.authapp',
 ]
 
 MIDDLEWARE = [
