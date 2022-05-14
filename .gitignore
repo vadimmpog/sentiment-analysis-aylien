@@ -136,3 +136,7 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
+
+# Credentials
+creds.py
+*.json
