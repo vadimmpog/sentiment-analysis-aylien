@@ -26,11 +26,11 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarCollapse">
           <ul class="navbar-nav mr-auto">
-            <li class="nav-item active" id="head_analysis">
-              <a class="nav-link" href>Analysis <span class="sr-only">(current)</span></a>
+            <li class="nav-item active" style="cursor: pointer" id="head_analysis">
+              <a class="nav-link" onclick="show_analysis()">Analysis <span class="sr-only">(current)</span></a>
             </li>
-            <li class="nav-item" id="head_history">
-              <a class="nav-link" href>History</a>
+            <li class="nav-item" style="cursor: pointer" id="head_history">
+              <a class="nav-link" onclick="show_history()">History</a>
             </li>
           </ul>
           <form class="form-inline mt-2 mt-md-0">
@@ -43,16 +43,40 @@
 
     <!-- Begin page content -->
     <main role="main" class="container">
-        <div class="form-group">
+        <div class="form-group" id="request_text">
         <br>
         <label for="Textarea">English</label>
-        <textarea class="form-control" id="Textarea" rows="6"></textarea><br>
+        <textarea class="form-control" id="Textarea" rows="6" placeholder="Start typing here"></textarea><br>
         <button class="btn btn-outline-dark" style="float: right" id="analyze_button" onclick="analyze()">Analyze</button>
-        <br><br><br>
-
+        <div style="display: inline-block; float: right; margin-right: 15px">
+            <input type="checkbox" id="save" name="save">
+            <label for="scales">save</label>
         </div>
-        <div class="form-group" style="display: none" id="history_body_id">
+        </div>
+        <div class="form-group" style="display: none; margin-top: 60px" id="result_text">
+            <label for="result">Result</label><br>
+            P+: strong positive,
+            P: positive,
+            NEU: neutral,
+            N: negative,
+            N+: strong negative,
+            NONE: without polarity,
             <div class="form-control" style="white-space: pre-line" id="result"></div>
+        </div>
+        <div class="form-group" style="display: none" id="history_body">
+            <table class="table" id="table" style="margin-top: 40px; border: 2px solid #343a40;">
+              <thead class="thead-light" style="color: white">
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Текст</th>
+                  <th scope="col">Общая оценка</th>
+                  <th scope="col">Ироничность текста</th>
+                  <th scope="col">Уверенность анализа</th>
+                  <th scope="col">Удалить</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
         </div>
     </main>
 
@@ -78,7 +102,8 @@
         document.getElementById("username").textContent = "{{ user.get_username }}";
 
         async function analyze() {
-            let url = "/analysis/analyze/"
+            let save = document.getElementById("save").checked;
+            let url = "/analysis/analyze/?save=" + save;
             let text = document.getElementById("Textarea").value;
             let data = {};
             data["text"] = text;
@@ -96,18 +121,103 @@
                 return response.json()
             });
 
+            let entities = "";
+            response['sentimented_entity_list'].forEach(
+                element => entities += element["form"] + " - "+ element["score_tag"] +", "
+            );
+
+
             if(response){
-                document.getElementById("history_body_id").style.display = "block";
+                document.getElementById("result_text").style.display = "block";
                 document.getElementById("result").textContent =
                     "Общая оценка: " + response['score_tag'] +
                     "\nИроничность текста: " + response['irony'] +
                     "\nУверенность анализа: " + response['confidence'] + "%" +
-                    "\nСписок сущностей: " + response['sentimented_entity_list'].toString()
+                    "\nСписок сущностей: " + entities
                 ;
             }
         }
 
-        function show_history(){}
+        function show_history(){
+            load_history()
+            document.getElementById("head_analysis").classList = "nav-item";
+            document.getElementById("head_history").classList = "nav-item active";
+            document.getElementById("request_text").style.display = "none";
+            document.getElementById("result_text").style.display = "none";
+        }
+
+        function show_analysis(){
+            document.getElementById("head_analysis").classList = "nav-item active";
+            document.getElementById("head_history").classList = "nav-item";
+            document.getElementById("request_text").style.display = "block";
+            document.getElementById("history_body").style.display = "none";
+        }
+
+        async function load_history(){
+            clear()
+            let url = "/analysis/history/";
+            let response = await fetch(url).then(function (response) {
+                if (!response.ok) {
+                    alert("Ошибка анализа" + response.status)
+                }
+                return response.json();
+            });
+
+            let tbl = document.getElementById("tbody");
+
+            response.forEach(row => {
+                let tr = tbl.appendChild(document.createElement("tr"))
+                tr.id = "tr" + row["id"]
+                let th = tr.appendChild(document.createElement("th"))
+                th.scope = "row";
+                th.textContent = row["id"];
+                Object.keys(row).forEach(key => {
+                    if(key !== "id") {
+                        let td = tr.appendChild(document.createElement("td"));
+                        td.textContent = row[key]
+                    }
+                })
+                let td = tr.appendChild(document.createElement("td"));
+                let btn = td.appendChild(document.createElement("button"))
+                btn.classList = "btn";
+                btn.textContent = "−"
+                btn.id = row["id"]
+                btn.onclick= function () {
+                    deleteItem(this.id);
+                };
+            })
+            if (document.getElementById("tbody").childNodes.length > 0) {
+                document.getElementById("history_body").style.display = "block";
+            }
+            else {
+                document.getElementById("history_body").style.display = "none";
+            }
+        }
+
+        function clear(){
+            let table = document.getElementById("table");
+            table.removeChild(document.getElementById("tbody"));
+            let tbody = document.createElement("tbody");
+            tbody.id = "tbody"
+            table.appendChild(tbody)
+        }
+
+        async function deleteItem(id){
+        let response = await fetch('/analysis/delete/?hist_id='+id, {
+            method: "Delete"
+        });
+        if(!response.ok){
+            alert("Ошибка "+ response.status)
+        }
+        let tr = document.getElementById("tr"+id);
+        document.getElementById("tbody").removeChild(tr);
+        if (document.getElementById("tbody").childNodes.length > 0) {
+            document.getElementById("history_body").style.display = "block";
+        }
+        else {
+            document.getElementById("history_body").style.display = "none";
+        }
+    }
     </script>
   </body>
 </html>
