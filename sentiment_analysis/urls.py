@@ -14,10 +14,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, re_path, include
+from django.urls import path, include
+
+from sentiment_analysis import view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    re_path(r'^auth/', include('sentiment_analysis.apps.authapp.urls', namespace='auth')),
-    re_path(r'^analysis/', include('sentiment_analysis.apps.analysisapp.urls', namespace='analysis')),
+    path('auth/', include('sentiment_analysis.apps.authapp.urls', namespace='auth')),
+    path('analysis/', include('sentiment_analysis.apps.analysisapp.urls', namespace='analysis')),
+    path('', view.home, name='home'),
+
 ]
